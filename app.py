@@ -1,19 +1,20 @@
 import os
-
 from flask import Flask
 from flask import request, jsonify
 from src.translator import translate_content
 
 app = Flask(__name__)
 
-@app.route("/")
-def translator():
-    content = request.args.get("content", default = "", type = str)
-    is_english, translated_content = translate_content(content)
+@app.route("/translate")
+def translate():
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
+    is_english, translated_content = translate_content(text)
     return jsonify({
-        "is_english": is_english,
-        "translated_content": translated_content,
-    })
+        "is_english": bool(is_english),
+        "translated_content": translated,
+        "classification_confidence": None, 
+    }), 200
 
 
 if __name__ == "__main__":
