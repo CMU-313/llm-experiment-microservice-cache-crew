@@ -1,5 +1,8 @@
 import os
 
+from .metrics import record, get_metrics
+import time
+
 try:
     from ollama import Client, ChatResponse
 except Exception:
@@ -61,38 +64,43 @@ def translate_content(content: str) -> tuple[bool, str]:
     Returns (is_english, translated_text_or_original_or_placeholder).
     Robust to malformed model output and runtime errors.
     """
+    start = time.time()
     try:
         # Unit test
         canned = {
             "这是一条中文消息": "This is a Chinese message",
         }
         if content in canned:
+            record(True, start, canned[content])
             return (False, canned[content])
 
         text = (content or "").strip()
         if not text:
+            record(False, start)
             return (False, "Unintelligible")
 
-        lang = (get_language(text) or "").strip().lower()
-
-        # Basic validation to guard against odd LLM outputs
         lang = (get_language(text) or "").strip().lower()
 
         # Validation: must be a single alphabetic word (no spaces/punctuation)
         if (not lang) or (" " in lang) or (not lang.isalpha()):
+            record(False, start)
             return (False, "Unintelligible")
 
         if lang == "english":
+            record(True, start, text)
             return (True, text)
 
         translated = (get_translation(text) or "").strip()
 
         # Must be non-empty and ASCII
         if not translated or not _is_ascii_text(translated):
+            record(False, start)
             return (False, "Unintelligible")
 
+        record(True, start, translated)
         return (False, translated)
 
     except Exception:
+        record(False, start)
         # Graceful failure (as outlined in architectural design doc)
         return (False, "Unintelligible")
