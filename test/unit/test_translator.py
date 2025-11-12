@@ -2,7 +2,6 @@ import os
 import time
 import pytest
 from unittest.mock import patch
-from flask import Flask, request, jsonify
 
 from src.translator import translate_content, get_translation, get_language
 
