@@ -1,10 +1,10 @@
 import os
+from typing import Any
 
 try:
-    from ollama import Client, ChatResponse
+    from ollama import Client
 except Exception:
     Client = None
-    ChatResponse = None
 
 MODEL_NAME = os.getenv("MODEL_NAME", "qwen3:0.6b")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
@@ -24,48 +24,48 @@ Return only the English name of the primary language of the input (e.g., 'German
 If English, return 'English'. No punctuation or extra words.
 """
 
-def _ollama_client(): 
+def _ollama_client():
     if Client is None:
-        raise RuntimeError("Ollama client not available. Ensure 'ollama' Python package is installed and server is running.")
+        raise RuntimeError(
+            "Ollama client not available. Ensure the 'ollama' package is installed and the server is running (ollama serve)."
+        )
     return Client(host=OLLAMA_HOST)
 
+def _extract_content(resp: Any) -> str:
+    if isinstance(resp, dict):
+        try:
+            return str(resp["message"]["content"])
+        except Exception:
+            return ""
+    try:
+        return str(resp.message.content)
+    except Exception:
+        return ""
+
+def _is_ascii_text(s: str) -> bool:
+    return all(ch.isascii() for ch in s)
+
 def get_translation(post: str) -> str:
-    """
-    Call Ollama to translate 'post' into English (or echo if already English).
-    """
     client = _ollama_client()
     messages = [
         {"role": "system", "content": TRANSLATION_CONTEXT},
         {"role": "user", "content": post},
     ]
-    resp: ChatResponse = client.chat(model=MODEL_NAME, messages=messages)
-    return resp.message.content.strip()
+    resp = client.chat(model=MODEL_NAME, messages=messages)
+    return _extract_content(resp).strip()
 
 def get_language(post: str) -> str:
-    """
-    Call Ollama to detect the language name in English (e.g., 'German', 'English').
-    """
     client = _ollama_client()
     messages = [
         {"role": "system", "content": CLASSIFICATION_CONTEXT},
         {"role": "user", "content": post},
     ]
-    resp: ChatResponse = client.chat(model=MODEL_NAME, messages=messages)
-    return resp.message.content.strip()
-
-def _is_ascii_text(s: str) -> bool:
-    return all(c.isascii() or c.isspace() for c in s)
+    resp = client.chat(model=MODEL_NAME, messages=messages)
+    return _extract_content(resp).strip()
 
 def translate_content(content: str) -> tuple[bool, str]:
-    """
-    Returns (is_english, translated_text_or_original_or_placeholder).
-    Robust to malformed model output and runtime errors.
-    """
     try:
-        # Unit test
-        canned = {
-            "这是一条中文消息": "This is a Chinese message",
-        }
+        canned = {"这是一条中文消息": "This is a Chinese message"}
         if content in canned:
             return (False, canned[content])
 
@@ -74,11 +74,6 @@ def translate_content(content: str) -> tuple[bool, str]:
             return (False, "Unintelligible")
 
         lang = (get_language(text) or "").strip().lower()
-
-        # Basic validation to guard against odd LLM outputs
-        lang = (get_language(text) or "").strip().lower()
-
-        # Validation: must be a single alphabetic word (no spaces/punctuation)
         if (not lang) or (" " in lang) or (not lang.isalpha()):
             return (False, "Unintelligible")
 
@@ -86,13 +81,10 @@ def translate_content(content: str) -> tuple[bool, str]:
             return (True, text)
 
         translated = (get_translation(text) or "").strip()
-
-        # Must be non-empty and ASCII
         if not translated or not _is_ascii_text(translated):
             return (False, "Unintelligible")
 
         return (False, translated)
 
     except Exception:
-        # Graceful failure (as outlined in architectural design doc)
         return (False, "Unintelligible")
