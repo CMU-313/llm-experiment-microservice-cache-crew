@@ -1,21 +1,18 @@
 import os
-from flask import Flask, request, jsonify
+from flask import Flask
+from flask import request, jsonify
 from src.translator import translate_content
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET", "POST"])
+@app.post("/")
 def translate():
-    if request.method == "GET":
-        # browser-friendly: /?content=Bonjour%20tout%20le%20monde!
-        text = request.args.get("content", "", type=str)
-    else:
-        # JSON POST: {"text": "..."}
-        data = request.get_json(silent=True) or {}
-        text = data.get("text", "")
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "")
 
+    # Add in an error check
     if not isinstance(text, str):
-        return jsonify({"error": "Invalid payload: text/content must be a string"}), 400
+        return jsonify({"error": "Invalid payload: 'text' must be a string"}), 400
 
     is_english, translated_text = translate_content(text)
     return jsonify({
