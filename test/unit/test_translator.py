@@ -6,7 +6,6 @@ from unittest.mock import patch
 from src.translator import translate_content, get_translation, get_language
 
 def test_chinese():
-    # Deterministic canned case in translate_content
     is_english, translated_content = translate_content("这是一条中文消息")
     assert is_english is False
     assert translated_content == "This is a Chinese message"
@@ -14,7 +13,7 @@ def test_chinese():
 @patch("src.translator.get_language")
 @patch("src.translator.get_translation")
 def test_unexpected_language(mock_translate, mock_language):
-    mock_language.return_value = "I don't understand your request"  # invalid classifier output
+    mock_language.return_value = "I don't understand your request"
     mock_translate.return_value = "This is your first example."
     result = translate_content("Hier ist dein erstes Beispiel.")
     assert result == (False, "Unintelligible")
@@ -23,7 +22,7 @@ def test_unexpected_language(mock_translate, mock_language):
 @patch("src.translator.get_translation")
 def test_empty_translation(mock_translate, mock_language):
     mock_language.return_value = "German"
-    mock_translate.return_value = ""  # empty => invalid
+    mock_translate.return_value = ""
     result = translate_content("Hier ist dein erstes Beispiel.")
     assert result == (False, "Unintelligible")
 
@@ -31,7 +30,7 @@ def test_empty_translation(mock_translate, mock_language):
 @patch("src.translator.get_translation")
 def test_non_english_characters_in_translation(mock_translate, mock_language):
     mock_language.return_value = "German"
-    mock_translate.return_value = "你好。"  # non-ASCII => invalid by our validator
+    mock_translate.return_value = "你好。"
     result = translate_content("Hier ist dein erstes Beispiel.")
     assert result == (False, "Unintelligible")
 
@@ -72,7 +71,6 @@ _LANGUAGE_EVAL = [
 ]
 
 _COMBINED_EVAL = [
-    # non-English => expect (False, translated)
     (False, "Here is your first example.", "Hier ist dein erstes Beispiel."),
     (False, "Hello everyone!", "Bonjour tout le monde!"),
     (False, "How are you today?", "¿Cómo estás hoy?"),
